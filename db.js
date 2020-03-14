@@ -4,38 +4,36 @@ const client = new pg.Client(
 );
 
 client.connect();
-
 const sync = async () => {
   const SQL = `
   CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-  DROP TABLE IF EXISTS schools;
-  DROP TABLE IF EXISTS students;
 
-  CREATE TABLE students(
-      id UUID PRIMARY KEY default uuid_generate_v4(),
-      name VARCHAR(100) NOT NULL,
-      status BOOLEAN
-      );
+  DROP TABLE IF EXISTS students;
+  DROP TABLE IF EXISTS schools;
 
   CREATE TABLE schools(
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    students_id UUID REFERENCES students(id),
-    name VARCHAR(100)
-  );
+    school_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    school_name VARCHAR(50) NOT NULL);
 
-  INSERT INTO students (name, status) VALUES ('lucy', true);
-  INSERT INTO students (name, status) VALUES ('moe', true);
-  INSERT INTO students (name, status) VALUES ('larry', null);
-  INSERT INTO students (name, status) VALUES ('curly', null);
+    CREATE TABLE students(
+      student_id UUID PRIMARY KEY default uuid_generate_v4(),
+      student_name VARCHAR(50),
+      enrollment_status BOOLEAN,
+      school_id UUID REFERENCES schools(school_id));
+
+      INSERT INTO schools (school_name) VALUES ('Wake Forest');
+      INSERT INTO schools (school_name) VALUES ('Duke University');
+      INSERT INTO schools (school_name) VALUES ('Appalachian State');
+      INSERT INTO schools (school_name) VALUES ('UNC-Chapel Hill');
+      INSERT INTO schools (school_name) VALUES ('UNC-Greensboro');
 
 
-  INSERT INTO schools (id, students_id, name)
-  VALUES
-  (uuid_generate_v4(), (SELECT id FROM students where students.name = 'lucy'), 
-  'UNC-Chapel Hill'),
-  (uuid_generate_v4(), (SELECT id FROM students where students.name = 'moe'), 
-  'Wake Forest')
-
+      INSERT INTO students (student_id, student_name, enrollment_status, school_id)
+      VALUES
+      (uuid_generate_v4(), 'larry', null, null),
+      (uuid_generate_v4(), 'curly', null, null),
+      (uuid_generate_v4(), 'lucy', true, (SELECT school_id FROM schools where schools.school_name = 'UNC-Chapel Hill')),
+      (uuid_generate_v4(), 'moe', true, (SELECT school_id FROM schools where schools.school_name = 'Wake Forest'))
   `;
 
   await client.query(SQL);
@@ -49,38 +47,61 @@ const readSchools = async () => {
 };
 const createStudent = async ({ name }) => {
   return (
-    await client.query("INSERT INTO students(name) VALUES ($1) returning *", [
-      name
-    ])
-  ).rows[0];
-};
-const enrollStudent = async ({ student }) => {
-  return (
     await client.query(
-      "INSERT INTO schools(student_id) VALUES ($1) returning *",
-      [student]
+      "INSERT INTO students(student_name) VALUES ($1) returning *",
+      [name]
     )
   ).rows[0];
 };
 const createSchool = async ({ schoolName }) => {
   return (
-    await client.query("INSERT INTO schools(name) VALUES ($1) returning *", [
-      schoolName
-    ])
+    await client.query(
+      "INSERT INTO schools(school_name) VALUES ($1) returning *",
+      [schoolName]
+    )
   ).rows[0];
 };
-const readSchoolsbyStudent = async students_id => {
-  const SQL = "SELECT * FROM schools WHERE students_id=$1";
-  const result = await client.query(SQL, [students_id]);
-  return result.rows;
+const deleteStudent = async id => {
+  const SQL = "DELETE FROM students WHERE student_id = $1";
+  await client.query(SQL, [id]);
 };
+const deleteSchool = async id => {
+  const SQL = "DELETE FROM schools WHERE school_id = $1";
+  await client.query(SQL, [id]);
+};
+const enrollStudent = async ({ studentId, enrollmentStatus, schoolId }) => {
+  return (
+    await client.query(
+      "INSERT INTO students WHERE student_id === studentId (enrollment_status, school_id) VALUES ($1, $2) returning *",
+      [studentId, enrollmentStatus, schoolId]
+    )
+  ).rows[0];
+};
+
+// const updateSchool = async ({ school }) => {
+//   const SQL =
+//     'UPDATE schools SET schoolName = ($1) WHERE id = ($2) returning *';
+//   return (await client.query(SQL, [school.name, school.id])).rows[0];
+// };
+
+// const updateStudent = async ({ student }) => {
+//   const SQL = `UPDATE students SET studentName = ($1), studentSchool = ($2) WHERE id = ($3) returning *`;
+//   return (
+//     await client.query(SQL, [
+//       student.studentName,
+//       student.studentSchool,
+//       student.id,
+//     ])
+//   ).rows[0];
+// };
 
 module.exports = {
   sync,
   readStudents,
   readSchools,
-  readSchoolsbyStudent,
   createStudent,
   createSchool,
+  deleteStudent,
+  deleteSchool,
   enrollStudent
 };
