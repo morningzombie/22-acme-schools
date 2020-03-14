@@ -6,12 +6,8 @@ const App = () => {
   const [schools, setSchools] = useState([]);
   const [name, setName] = useState([]);
   const [schoolName, setSchoolName] = useState([]);
-  const [enrollee, setEnrollee] = useState({
-    studentId: "",
-    enrollmentStatus: true,
-    schoolId: ""
-  });
-  //console.log(enrollee);
+  const [enrollee, setEnrollee] = useState({});
+  console.log("Enrollee", enrollee);
   useEffect(() => {
     axios.get("/api/students").then(response => setStudents(response.data));
   }, []);
@@ -61,24 +57,26 @@ const App = () => {
     console.log("called handle change with : ", event, school, enrollee);
     // find out if we can get the option's value  (student's id)from the event target
     setEnrollee({
-      studentId: enrollee.student_id,
-      enrollmentStatus: true,
-      schoolId: school.school_id
+      studentid: enrollee.student_id,
+      enrollmentstatus: true,
+      schoolid: school.school_id
     });
   };
-  // const enrollStudent = ev => {
-  //   ev.preventDefault();
-  //   axios.post("/api/students", { enrollee }).then(response =>
-  //     setStudents([
-  //       ...students,
-  //       {
-  //         studentId: response.data.student_id,
-  //         enrollmentStatus: true,
-  //         schoolId: response.data.school_id
-  //       }
-  //     ]).then(() => setEnrollee())
-  //   );
-  // };
+  const enrollStudent = (event, school, enrollee) => {
+    console.log("called handle change with : ", event, school, enrollee);
+
+    event.preventDefault();
+    axios.post("/api/students", { enrollee }).then(response =>
+      setStudents([
+        ...students,
+        {
+          studentId: response.data.student_id,
+          enrollmentStatus: true,
+          schoolId: response.data.school_id
+        }
+      ]).then(() => setEnrollee())
+    );
+  };
 
   return (
     <div>
@@ -188,13 +186,13 @@ const App = () => {
                     {/* ENROLLED STUDENTS ENDS */}
 
                     {/* UNENROLLED STUDENTS */}
-                    <form onSubmit={handleChange}>
+                    <form onSubmit={enrollStudent}>
                       <div>
                         <select
                           data-id={school.school_id}
                           className="select2"
                           value={enrollee}
-                          onChange={ev => setEnrollee(ev.target.value)}
+                          onChange={ev => setEnrollee(ev.target.value, school)}
 
                           // onChange={ev => handleChange(ev, school, student)}
                         >
@@ -205,6 +203,8 @@ const App = () => {
                                 <option
                                   key={student.student_id}
                                   value={student.student_id}
+                                  studentid={enrollee.student_id}
+                                  schoolid={school.school_id}
 
                                   // onChange={ev =>
                                   //   handleChange(ev, school, student_id)
@@ -219,7 +219,7 @@ const App = () => {
                       </div>
                     </form>
                     {/* UNENROLLED STUDENTS ENDS */}
-                    <button onClick={handleChange}>Enroll</button>
+                    <button onClick={enrollStudent}>Enroll</button>
                   </li>
                 );
               })}
